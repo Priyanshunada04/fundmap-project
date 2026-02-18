@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FundMap — Find. Verify. Apply.</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+:root {
+  --bg: #F5F2ED;
+  --bg2: #EDE9E2;
+  --surface: #FFFFFF;
+  --surface2: #FAF8F5;
+  --ink: #1C1814;
+  --ink2: #3D3530;
+  --muted: #8A7E74;
+  --border: #D8D0C6;
+  --accent: #C84B31;
+  --accent2: #2A6B4A;
+  --accent3: #1E4FA8;
+  --gold: #B8860B;
+  --tag-bg: #EDE9E2;
+
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'Instrument Sans', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+
+  --radius: 8px;
+  --shadow: 0 2px 12px rgba(28,24,20,0.08);
+  --shadow-lg: 0 8px 40px rgba(28,24,20,0.14);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Grain texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ── VIEWS ── */
+.view { display: none; min-height: 100vh; }
+.view.active { display: block; }
+
+/* ── NAVIGATION ── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(245,242,237,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+
+.nav-logo {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--ink);
+  cursor: pointer;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-logo span { color: var(--accent); }
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-link {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
+}
+
+.nav-link:hover { background: var(--bg2); }
+.nav-link.active { background: var(--ink); color: #fff; }
+
+.nav-cta {
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.nav-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* ── CONTAINERS ── */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 40px; }
+.container-sm { max-width: 720px; margin: 0 auto; padding: 0 40px; }
+
+/* ── BADGES & TAGS ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 4px;
+}
+.badge-active { background: #D4EDDA; color: #155724; }
+.badge-closed { background: #F8D7DA; color: #721C24; }
+.badge-invite { background: #FFF3CD; color: #856404; }
+.badge-unverified { background: #E2E3E5; color: #383D41; }
+.badge-verified { background: #D1ECF1; color: #0C5460; }
+.badge-new { background: #C84B31; color: #fff; }
+
+.tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--tag-bg);
+  color: var(--ink2);
+  border: 1px solid var(--border);
+}
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 22px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #a83d28; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(200,75,49,0.3); }
+.btn-secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--bg2); }
+.btn-ghost { background: transparent; color: var(--ink2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg2); }
+.btn-green { background: var(--accent2); color: #fff; }
+.btn-green:hover { background: #1e5238; }
+.btn-sm { font-size: 12px; padding: 7px 14px; }
+.btn-lg { font-size: 16px; padding: 14px 32px; }
+
+/* ═══════════════════════════════════════
+   LANDING PAGE
+═══════════════════════════════════════ */
+.hero {
+  padding: 100px 0 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 24px;
+  border: 1px solid rgba(200,75,49,0.3);
+  padding: 5px 14px;
+  border-radius: 20px;
+  background: rgba(200,75,49,0.05);
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(52px, 7vw, 84px);
+  font-weight: 800;
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin-bottom: 28px;
+  max-width: 700px;
+}
+
+.hero-title em {
+  font-style: normal;
+  color: var(--accent);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.hero-sub {
+  font-size: 18px;
+  color: var(--muted);
+  max-width: 480px;
+  line-height: 1.65;
+  margin-bottom: 40px;
+  font-weight: 400;
+}
+
+.hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+.hero-trust {
+  margin-top: 60px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.trust-stat {
+  display: flex;
+  flex-direction: column;
+}
+.trust-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.trust-label { font-size: 12px; color: var(--muted); }
+
+.trust-divider { width: 1px; height: 40px; background: var(--border); }
+
+/* Hero visual */
+.hero-visual {
+  position: absolute;
+  right: -40px;
+  top: 60px;
+  width: 480px;
+  pointer-events: none;
+  animation: floatIn 0.8s 0.3s ease both;
+}
+
+@keyframes floatIn {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.mini-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 12px;
+  opacity: 0;
+  animation: cardFloat 0.5s ease both;
+}
+
+.mini-card:nth-child(1) { animation-delay: 0.5s; margin-left: 0; }
+.mini-card:nth-child(2) { animation-delay: 0.7s; margin-left: 40px; }
+.mini-card:nth-child(3) { animation-delay: 0.9s; margin-left: 20px; }
+
+@keyframes cardFloat {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mini-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.mini-card-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.mini-card-org { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.mini-card-amount { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--accent2); }
+.mini-card-footer { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+/* How it works */
+.how-it-works { padding: 80px 0; }
+.section-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.15;
+  margin-bottom: 48px;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.step-card {
+  background: var(--surface);
+  padding: 36px 28px;
+  transition: background 0.2s;
+}
+.step-card:hover { background: var(--surface2); }
+
+.step-num {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--border);
+  line-height: 1;
+  margin-bottom: 16px;
+}
+.step-icon { font-size: 28px; margin-bottom: 12px; display: block; }
+.step-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 8px; }
+.step-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* Pain points section */
+.pain-section { padding: 80px 0; background: var(--ink); }
+.pain-section .section-label { color: var(--muted); }
+.pain-section .section-title { color: #fff; }
+.pain-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+.pain-card {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 32px;
+  background: rgba(255,255,255,0.03);
+  transition: background 0.2s, transform 0.2s;
+}
+.pain-card:hover { background: rgba(255,255,255,0.07); transform: translateY(-2px); }
+.pain-icon { font-size: 32px; margin-bottom: 16px; display: block; }
+.pain-title { font-family: var(--font-display); font-weight: 700; font-size: 17px; color: #fff; margin-bottom: 10px; }
+.pain-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.65; }
+.pain-quote {
+  margin-top: 14px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+}
+
+/* CTA Banner */
+.cta-banner {
+  padding: 80px 0;
+  text-align: center;
+}
+.cta-inner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 64px;
+  max-width: 640px;
+  margin: 0 auto;
+  box-shadow: var(--shadow-lg);
+}
+.cta-inner h2 {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+.cta-inner p { color: var(--muted); margin-bottom: 32px; font-size: 16px; }
+.cta-btns { display: flex; gap: 12px; justify-content: center; }
+
+/* ═══════════════════════════════════════
+   DIRECTORY VIEW
+═══════════════════════════════════════ */
+.dir-header {
+  padding: 48px 0 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.dir-header h1 {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.dir-search-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  align-items: center;
+}
+.search-box {
+  flex: 1;
+  position: relative;
+}
+.search-box input {
+  width: 100%;
+  height: 44px;
+  padding: 0 44px 0 44px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.search-box input:focus { border-color: var(--accent); }
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.dir-body { display: flex; gap: 28px; padding: 32px 0; }
+
+/* Filters */
+.filters-panel {
+  width: 240px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 92px;
+  height: fit-content;
+}
+.filter-section { margin-bottom: 28px; }
+.filter-title {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink2);
+  transition: color 0.15s;
+}
+.filter-option:hover { color: var(--ink); }
+.filter-option input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
+.filter-count { margin-left: auto; font-size: 11px; color: var(--muted); background: var(--bg2); padding: 1px 6px; border-radius: 10px; }
+
+/* Results */
+.results-area { flex: 1; min-width: 0; }
+.results-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.results-count { font-size: 14px; color: var(--muted); }
+.results-count strong { color: var(--ink); }
+.sort-select {
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+}
+
+.opp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  animation: slideUp 0.3s ease both;
+}
+.opp-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.opp-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  background: var(--bg2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+.opp-main { flex: 1; min-width: 0; }
+.opp-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.opp-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.opp-org { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.opp-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.opp-amount {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent2);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.opp-meta { display: flex; gap: 8px; margin: 10px 0 12px; flex-wrap: wrap; align-items: center; }
+.opp-deadline {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.opp-deadline.urgent { color: var(--accent); font-weight: 600; }
+.opp-desc { font-size: 13px; color: var(--muted); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.opp-footer { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+
+.match-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: rgba(42,107,74,0.1);
+  color: var(--accent2);
+  letter-spacing: 0.04em;
+}
+
+.verified-line {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════
+   OPPORTUNITY DETAIL
+═══════════════════════════════════════ */
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 8px 0;
+  font-family: var(--font-body);
+  border: none;
+  background: none;
+  margin-bottom: 12px;
+  transition: color 0.15s;
+}
+.detail-back:hover { color: var(--ink); }
+
+.detail-header { padding: 40px 0 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+.detail-header-inner { max-width: 800px; margin: 0 auto; padding: 0 40px 40px; }
+.detail-logo { width: 72px; height: 72px; border-radius: 14px; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 36px; border: 1px solid var(--border); margin-bottom: 20px; }
+.detail-title { font-family: var(--font-display); font-size: 36px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 6px; }
+.detail-org { font-size: 15px; color: var(--muted); margin-bottom: 20px; }
+.detail-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+
+/* Trust Panel */
+.trust-panel {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 28px;
+}
+.trust-panel-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.trust-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+.trust-item { display: flex; flex-direction: column; gap: 4px; }
+.trust-item-label { font-size: 11px; color: var(--muted); }
+.trust-item-value { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--ink); }
+.trust-stars { color: var(--gold); font-size: 14px; }
+
+.detail-body { max-width: 800px; margin: 0 auto; padding: 40px; display: flex; flex-direction: column; gap: 40px; }
+
+.detail-section h3 {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-section p { font-size: 15px; color: var(--ink2); line-height: 1.7; }
+
+.eligibility-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.eligibility-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink2);
+}
+.elig-check { color: var(--accent2); font-weight: 700; flex-shrink: 0; }
+.elig-cross { color: var(--accent); flex-shrink: 0; }
+
+/* Reviews */
+.review-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 12px;
+}
+.review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.reviewer { font-family: var(--font-display); font-weight: 600; font-size: 13px; color: var(--ink); }
+.review-date { font-size: 11px; color: var(--muted); }
+.review-stars { color: var(--gold); font-size: 13px; margin-bottom: 8px; }
+.review-text { font-size: 13px; color: var(--ink2); line-height: 1.6; }
+
+/* Apply CTA */
+.apply-box {
+  background: var(--ink);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+}
+.apply-box h3 { font-family: var(--font-display); font-size: 20px; color: #fff; font-weight: 700; margin-bottom: 8px; }
+.apply-box p { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 20px; }
+.apply-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ═══════════════════════════════════════
+   FOUNDER PROFILE
+═══════════════════════════════════════ */
+.profile-view { padding: 48px 0 80px; }
+.profile-header { margin-bottom: 40px; }
+.profile-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 8px; }
+.profile-header p { color: var(--muted); font-size: 15px; }
+
+.progress-bar-wrap { background: var(--bg2); border-radius: 8px; height: 8px; margin: 24px 0 8px; overflow: hidden; }
+.progress-bar-fill { background: linear-gradient(90deg, var(--accent2), #4CAF50); height: 100%; width: 65%; border-radius: 8px; transition: width 0.5s ease; }
+.progress-label { font-size: 12px; color: var(--muted); }
+
+.profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+}
+.profile-card.full-width { grid-column: 1 / -1; }
+.profile-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.profile-card-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--ink); }
+.profile-card-status { font-size: 11px; }
+.complete { color: var(--accent2); font-weight: 600; }
+.incomplete { color: var(--accent); font-weight: 600; }
+
+.form-field { margin-bottom: 16px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--ink2); margin-bottom: 6px; display: block; letter-spacing: 0.02em; }
+.form-input, .form-textarea, .form-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  resize: vertical;
+}
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+  border-color: var(--accent2);
+  box-shadow: 0 0 0 3px rgba(42,107,74,0.1);
+}
+.form-textarea { min-height: 80px; }
+
+.traction-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.metric-box {
+  background: var(--bg2);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+}
+.metric-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.metric-value { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--ink); }
+
+/* ═══════════════════════════════════════
+   TRACKER VIEW
+═══════════════════════════════════════ */
+.tracker-view { padding: 48px 0 80px; }
+.tracker-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+.tracker-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+
+.stats-row { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  flex: 1;
+  min-width: 140px;
+}
+.stat-num { font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.kanban { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+.kanban-col {}
+.kanban-col-header {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.kanban-count {
+  background: var(--bg2);
+  color: var(--ink2);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.tracker-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tracker-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.tracker-card-name { font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--ink); margin-bottom: 4px; }
+.tracker-card-org { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.tracker-card-deadline {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+}
+.tracker-card-deadline.soon { color: var(--accent); font-weight: 600; }
+.tracker-card-amount { font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--accent2); margin-top: 8px; }
+.tracker-card-note { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; background: var(--bg2); padding: 6px 8px; border-radius: 6px; }
+
+/* Deadline alert bar */
+.alert-bar {
+  background: rgba(200,75,49,0.08);
+  border: 1px solid rgba(200,75,49,0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: var(--accent);
+}
+.alert-bar strong { font-weight: 600; }
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--ink);
+  color: #fff;
+  padding: 16px 24px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+.toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+.empty-state h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+/* ═══════════════════════════════════════
+   GLOBAL SHARED COMPONENTS
+═══════════════════════════════════════ */
+.footer-nav {
+  background: var(--ink);
+  padding: 32px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 60px;
+}
+.footer-logo { font-family: var(--font-display); font-weight: 800; font-size: 18px; color: #fff; }
+.footer-logo span { color: var(--accent); }
+.footer-text { font-size: 12px; color: rgba(255,255,255,0.3); }
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.4s ease both; }
+
+/* Responsive */
+@media (max-width: 800px) {
+  .nav { padding: 0 16px; }
+  .container, .container-sm { padding: 0 16px; }
+  .hero-visual { display: none; }
+  .steps-grid { grid-template-columns: 1fr 1fr; }
+  .pain-grid { grid-template-columns: 1fr; }
+  .dir-body { flex-direction: column; }
+  .filters-panel { width: 100%; position: static; }
+  .trust-grid { grid-template-columns: 1fr 1fr; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .kanban { grid-template-columns: 1fr 1fr; }
+  .detail-body { padding: 20px; }
+  .detail-header-inner { padding: 0 20px 32px; }
+  .hero-title { font-size: 44px; }
+  .traction-metrics { grid-template-columns: 1fr; }
+  .stats-row .stat-card { min-width: 100px; }
+  .hero-trust { gap: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════ NAVBAR ══════════════════ -->
+<nav class="nav" id="mainNav">
+  <div class="nav-logo" onclick="showView('landing')">Fund<span>Map</span></div>
+  <div class="nav-links">
+    <button class="nav-link" id="nav-directory" onclick="showView('directory')">Opportunities</button>
+    <button class="nav-link" id="nav-profile" onclick="showView('profile')">My Profile</button>
+    <button class="nav-link" id="nav-tracker" onclick="showView('tracker')">Tracker</button>
+  </div>
+  <button class="nav-cta" onclick="showView('directory')">Find Funding →</button>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════
+     VIEW 1: LANDING PAGE
+══════════════════════════════════════════════ -->
+<div class="view active" id="view-landing">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container" style="position:relative">
+      <div class="hero-eyebrow">
+        <span>✦</span>
+        <span>2,400+ verified opportunities</span>
+      </div>
+      <h1 class="hero-title">
+        Stop wasting time.<br>
+        Start <em>finding</em> real funding.
+      </h1>
+      <p class="hero-sub">The only funding aggregator built around trust. Every opportunity is verified, dated, and reviewed by founders who've been there.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" onclick="showView('directory')">Browse Opportunities →</button>
+        <button class="btn btn-secondary btn-lg" onclick="showView('profile')">Build My Profile</button>
+      </div>
+      <div class="hero-trust">
+        <div class="trust-stat">
+          <span class="trust-num">2,400+</span>
+          <span class="trust-label">Verified opportunities</span>
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-stat">
+          <span class="trust-num">94%</span>
+          <span class="trust-label">Active & up-to-date</span>
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-stat">
+          <span class="trust-num">8h</span>
+          <span class="trust-label">Saved per founder / week</span>
+        </div>
+        <div class="trust-divider"></div>
+        <div class="trust-stat">
+          <span class="trust-num">12K+</span>
+          <span class="trust-label">Founders using FundMap</span>
+        </div>
+      </div>
+
+      <!-- Floating mini cards -->
+      <div class="hero-visual">
+        <div class="mini-card">
+          <div class="mini-card-header">
+            <div>
+              <div class="mini-card-name">Horizon Europe — EIC Accelerator</div>
+              <div class="mini-card-org">European Innovation Council</div>
+            </div>
+            <div class="mini-card-amount">€2.5M</div>
+          </div>
+          <div class="mini-card-footer">
+            <span class="badge badge-active">● Active</span>
+            <span class="tag">Deep Tech</span>
+            <span class="tag">EU</span>
+          </div>
+        </div>
+        <div class="mini-card">
+          <div class="mini-card-header">
+            <div>
+              <div class="mini-card-name">Y Combinator W26</div>
+              <div class="mini-card-org">Y Combinator</div>
+            </div>
+            <div class="mini-card-amount">$500K</div>
+          </div>
+          <div class="mini-card-footer">
+            <span class="badge badge-active">● Active</span>
+            <span class="tag">Accelerator</span>
+            <span class="tag">Global</span>
+          </div>
+        </div>
+        <div class="mini-card">
+          <div class="mini-card-header">
+            <div>
+              <div class="mini-card-name">SBIR Phase I Grant</div>
+              <div class="mini-card-org">US Department of Commerce</div>
+            </div>
+            <div class="mini-card-amount">$275K</div>
+          </div>
+          <div class="mini-card-footer">
+            <span class="badge badge-active">● Active</span>
+            <span class="tag">Government</span>
+            <span class="tag">USA</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pain Points -->
+  <section class="pain-section">
+    <div class="container">
+      <div class="section-label">The Problem We're Solving</div>
+      <h2 class="section-title">Founders lose weeks.<br>Not hours — weeks.</h2>
+      <div class="pain-grid">
+        <div class="pain-card">
+          <span class="pain-icon">🕳️</span>
+          <div class="pain-title">The Legitimacy Black Hole</div>
+          <div class="pain-desc">You spend 3 hours researching a grant, write the application, then discover it's invite-only. Or it closed two years ago. Or it never existed properly at all.</div>
+          <div class="pain-quote">"I applied to something I spent a week on. Turned out it was a dead programme. No one told me." — Maya, SaaS Founder</div>
+        </div>
+        <div class="pain-card">
+          <span class="pain-icon">🔄</span>
+          <div class="pain-title">The Re-entry Trap</div>
+          <div class="pain-desc">Every application is a fresh copy-paste marathon. Company description. Team bios. Revenue metrics. Pitch summary. Over and over, for every programme you apply to.</div>
+          <div class="pain-quote">"I've written my company description 40 times this year. It's demoralising." — Tom, Fintech Founder</div>
+        </div>
+        <div class="pain-card">
+          <span class="pain-icon">🗂️</span>
+          <div class="pain-title">The Spreadsheet Chaos</div>
+          <div class="pain-desc">Tracking 10+ applications across bookmarks, email threads, and a spreadsheet that's already out of date. Deadlines get missed. Follow-ups fall through the cracks.</div>
+          <div class="pain-quote">"I genuinely forgot I'd applied to one accelerator. Found the rejection email 3 months later." — Priya, Deep Tech Founder</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it Works -->
+  <section class="how-it-works">
+    <div class="container">
+      <div class="section-label">How FundMap Works</div>
+      <h2 class="section-title">Research once. Apply faster.</h2>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <span class="step-icon">📋</span>
+          <div class="step-title">Build your profile once</div>
+          <div class="step-desc">Enter your startup details, team, traction, and pitch. It lives here permanently and powers everything else.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <span class="step-icon">🔍</span>
+          <div class="step-title">Discover verified opportunities</div>
+          <div class="step-desc">Search 2,400+ opportunities filtered to your stage, sector, and geography. Every listing is verified and dated.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <span class="step-icon">✅</span>
+          <div class="step-title">Trust the signal</div>
+          <div class="step-desc">See verification badges, last-checked dates, and founder reviews before investing a single minute in an application.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">04</div>
+          <span class="step-icon">📬</span>
+          <div class="step-title">Apply with pre-filled data</div>
+          <div class="step-desc">Click Apply and your profile data auto-populates the form. Track your applications in one dashboard with deadline alerts.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-banner">
+    <div class="container">
+      <div class="cta-inner">
+        <h2>Stop researching. Start applying.</h2>
+        <p>Join 12,000+ founders who use FundMap to cut their funding research time by 8 hours a week.</p>
+        <div class="cta-btns">
+          <button class="btn btn-primary btn-lg" onclick="showView('profile')">Create Free Account →</button>
+          <button class="btn btn-ghost btn-lg" onclick="showView('directory')">Browse Opportunities</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer-nav">
+    <div class="footer-logo">Fund<span>Map</span></div>
+    <div class="footer-text">© 2026 FundMap · Find. Verify. Apply.</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     VIEW 2: DIRECTORY
+══════════════════════════════════════════════ -->
+<div class="view" id="view-directory">
+  <div class="dir-header">
+    <div class="container">
+      <h1>Find Funding</h1>
+      <div class="dir-search-row">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search by name, organisation, keyword..." id="searchInput" oninput="filterOpps()">
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="toggleFilters()">Filters</button>
+        <button class="btn btn-primary btn-sm" onclick="showView('profile')">✦ Match to my profile</button>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="dir-body">
+
+      <!-- Filters -->
+      <aside class="filters-panel" id="filtersPanel">
+        <div class="filter-section">
+          <div class="filter-title">Status</div>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Active <span class="filter-count" id="count-active">1,842</span></label>
+          <label class="filter-option"><input type="checkbox" onchange="filterOpps()"> Closing soon <span class="filter-count" id="count-closing">94</span></label>
+          <label class="filter-option"><input type="checkbox" onchange="filterOpps()"> Closed <span class="filter-count" id="count-closed">386</span></label>
+          <label class="filter-option"><input type="checkbox" onchange="filterOpps()"> Invite-only <span class="filter-count" id="count-invite">78</span></label>
+        </div>
+        <div class="filter-section">
+          <div class="filter-title">Type</div>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Accelerator <span class="filter-count" id="count-accel">412</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Government Grant <span class="filter-count" id="count-gov">634</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> VC / Angel <span class="filter-count" id="count-vc">548</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Foundation <span class="filter-count" id="count-found">219</span></label>
+          <label class="filter-option"><input type="checkbox" onchange="filterOpps()"> Competition <span class="filter-count" id="count-comp">107</span></label>
+        </div>
+        <div class="filter-section">
+          <div class="filter-title">Stage</div>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Pre-seed <span class="filter-count" id="count-preseed">723</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Seed <span class="filter-count" id="count-seed">891</span></label>
+          <label class="filter-option"><input type="checkbox" onchange="filterOpps()"> Series A <span class="filter-count" id="count-seriesa">334</span></label>
+        </div>
+        <div class="filter-section">
+          <div class="filter-title">Geography</div>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Global <span class="filter-count" id="count-global">398</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> USA <span class="filter-count" id="count-usa">512</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="filterOpps()"> Europe <span class="filter-count" id="count-europe">487</span></label>
+          <label class="filter-option"><input type="checkbox" onchange="filterOpps()"> UK <span class="filter-count" id="count-uk">203</span></label>
+          <label class="filter-option"><input type="checkbox" onchange="filterOpps()"> Asia <span class="filter-count" id="count-asia">195</span></label>
+        </div>
+      </aside>
+
+      <!-- Results -->
+      <div class="results-area">
+        <div class="results-meta">
+          <div class="results-count" id="resultsCount"><strong>2,400+</strong> opportunities found</div>
+          <select class="sort-select" onchange="sortOpps(this.value)">
+            <option value="match">Sort: Best Match</option>
+            <option value="deadline">Sort: Deadline (soonest)</option>
+            <option value="amount">Sort: Amount (highest)</option>
+            <option value="verified">Sort: Recently Verified</option>
+          </select>
+        </div>
+        <div id="oppsList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     VIEW 3: OPPORTUNITY DETAIL
+══════════════════════════════════════════════ -->
+<div class="view" id="view-detail">
+  <div class="detail-header">
+    <div class="detail-header-inner">
+      <button class="detail-back" onclick="showView('directory')">← Back to opportunities</button>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     VIEW 4: FOUNDER PROFILE
+══════════════════════════════════════════════ -->
+<div class="view" id="view-profile">
+  <div class="container-sm profile-view fade-in">
+    <div class="profile-header">
+      <h1>Founder Profile</h1>
+      <p>Enter your startup details once. FundMap uses this to match opportunities and pre-fill applications for you.</p>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="profileProgress"></div></div>
+      <div class="progress-label" id="progressLabel">Profile 65% complete — add traction metrics to unlock better matching</div>
+    </div>
+
+    <div class="profile-grid">
+
+      <div class="profile-card full-width">
+        <div class="profile-card-header">
+          <div class="profile-card-title">🏢 Company Basics</div>
+          <div class="profile-card-status complete">✓ Complete</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-field">
+            <label class="form-label">Company Name</label>
+            <input class="form-input" value="Luminary Labs" oninput="updateProgress();validateField(this)">
+          </div>
+          <div class="form-field">
+            <label class="form-label">Website</label>
+            <input class="form-input" value="luminarylabs.io" oninput="updateProgress();validateField(this)">
+          </div>
+          <div class="form-field" style="grid-column:1/-1">
+            <label class="form-label">One-line Description</label>
+            <input class="form-input" value="AI-powered supply chain resilience for mid-market manufacturers" oninput="updateProgress();validateField(this)">
+          </div>
+          <div class="form-field">
+            <label class="form-label">Stage</label>
+            <select class="form-select" onchange="updateProgress()">
+              <option>Pre-seed</option><option selected>Seed</option><option>Series A</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Founded</label>
+            <input class="form-input" value="2024" oninput="updateProgress();validateField(this)">
+          </div>
+          <div class="form-field">
+            <label class="form-label">Primary Sector</label>
+            <select class="form-select" onchange="updateProgress()"><option>B2B SaaS</option><option selected>Supply Chain / Logistics</option><option>Deep Tech</option></select>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Geography</label>
+            <select class="form-select" onchange="updateProgress()"><option selected>USA</option><option>Europe</option><option>Global</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-card full-width">
+        <div class="profile-card-header">
+          <div class="profile-card-title">💡 Problem & Solution</div>
+          <div class="profile-card-status complete">✓ Complete</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Problem Statement</label>
+          <textarea class="form-textarea" oninput="updateProgress();validateField(this)">Mid-market manufacturers lose 18% of annual revenue to supply chain disruptions they can't predict or respond to fast enough. Current solutions are either too expensive (enterprise ERP) or too basic (spreadsheets).</textarea>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Solution</label>
+          <textarea class="form-textarea" oninput="updateProgress();validateField(this)">Luminary provides real-time supply chain visibility and AI-powered disruption prediction, helping manufacturers reduce unplanned downtime by 60% at a price point accessible to mid-market.</textarea>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="profile-card-title">📈 Traction</div>
+          <div class="profile-card-status incomplete" id="tractionStatus">⚠ Incomplete</div>
+        </div>
+        <div class="traction-metrics">
+          <div class="metric-box">
+            <div class="metric-label">Monthly Revenue</div>
+            <div class="metric-value" contenteditable="true" oninput="updateProgress();checkTractionComplete()">$28K</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">MoM Growth</div>
+            <div class="metric-value" contenteditable="true" oninput="updateProgress();checkTractionComplete()">+22%</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Customers</div>
+            <div class="metric-value" contenteditable="true" oninput="updateProgress();checkTractionComplete()">14</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Team Size</div>
+            <div class="metric-value" contenteditable="true" oninput="updateProgress();checkTractionComplete()">6</div>
+          </div>
+        </div>
+        <div class="form-field" style="margin-top:16px">
+          <label class="form-label">Key Milestones</label>
+          <textarea class="form-textarea" placeholder="e.g. $150K ARR, 14 paying customers, shortlisted for X award..." style="min-height:60px" oninput="updateProgress();checkTractionComplete()"></textarea>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="profile-card-title">💰 Funding Ask</div>
+          <div class="profile-card-status incomplete" id="fundingStatus">⚠ Incomplete</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Raising Amount</label>
+          <input class="form-input" value="$1.2M" oninput="updateProgress();checkFundingComplete()">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Round Type</label>
+          <select class="form-select" onchange="updateProgress();checkFundingComplete()"><option selected>Seed</option><option>Pre-seed</option><option>Series A</option></select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Use of Funds</label>
+          <textarea class="form-textarea" placeholder="e.g. 60% engineering hires, 25% sales & marketing, 15% infrastructure" style="min-height:60px" oninput="updateProgress();checkFundingComplete()"></textarea>
+        </div>
+      </div>
+
+      <div class="profile-card full-width">
+        <div class="profile-card-header">
+          <div class="profile-card-title">👥 Team</div>
+          <div class="profile-card-status complete">✓ Complete</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div style="background:var(--bg2);border-radius:8px;padding:16px;border:1px solid var(--border)">
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px">Aisha Reyes</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px">CEO & Co-founder</div>
+            <div style="font-size:12px;color:var(--ink2)">Ex-McKinsey, 6 years in ops consulting. MBA from Wharton.</div>
+          </div>
+          <div style="background:var(--bg2);border-radius:8px;padding:16px;border:1px solid var(--border)">
+            <div style="font-weight:600;font-size:14px;margin-bottom:4px">Marcus Chen</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px">CTO & Co-founder</div>
+            <div style="font-size:12px;color:var(--ink2)">10 years ML engineering. Previously led supply chain AI at Amazon Logistics.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display:flex;gap:12px;margin-top:28px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="showToast('Draft saved successfully')">Save Draft</button>
+      <button class="btn btn-primary" onclick="saveProfile()">Save & Find Matching Opportunities →</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     VIEW 5: TRACKER
+══════════════════════════════════════════════ -->
+<div class="view" id="view-tracker">
+  <div class="container tracker-view fade-in">
+    <div class="tracker-header">
+      <div>
+        <h1>Application Tracker</h1>
+        <p style="color:var(--muted);margin-top:4px;font-size:14px">Track every application. Never miss a deadline.</p>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="showView('directory')">+ Add from Directory</button>
+    </div>
+
+    <div class="alert-bar" id="deadlineAlert">
+      ⚠️ <strong>2 deadlines this week:</strong> EIC Accelerator closes in 3 days · SBIR Phase I closes in 6 days
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-num" id="stat-total">8</div>
+        <div class="stat-label">Total applications</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent2)" id="stat-submitted">3</div>
+        <div class="stat-label">Submitted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent3)" id="stat-progress">2</div>
+        <div class="stat-label">In progress</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--gold)" id="stat-decision">1</div>
+        <div class="stat-label">Decision pending</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--accent)" id="stat-urgent">2</div>
+        <div class="stat-label">Deadlines this week</div>
+      </div>
+    </div>
+
+    <div class="kanban" id="kanbanBoard">
+      <!-- Saved -->
+      <div class="kanban-col" data-status="saved">
+        <div class="kanban-col-header">Saved <span class="kanban-count" id="count-saved">3</span></div>
+        <div class="kanban-items" id="col-saved"></div>
+      </div>
+
+      <!-- In Progress -->
+      <div class="kanban-col" data-status="progress">
+        <div class="kanban-col-header">In Progress <span class="kanban-count" id="count-progress">2</span></div>
+        <div class="kanban-items" id="col-progress"></div>
+      </div>
+
+      <!-- Submitted -->
+      <div class="kanban-col" data-status="submitted">
+        <div class="kanban-col-header">Submitted <span class="kanban-count" id="count-submitted">3</span></div>
+        <div class="kanban-items" id="col-submitted"></div>
+      </div>
+
+      <!-- Decision -->
+      <div class="kanban-col" data-status="decision">
+        <div class="kanban-col-header">Decision <span class="kanban-count" id="count-decision">1</span></div>
+        <div class="kanban-items" id="col-decision"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
+<script>
+// ── DATA ──
+const opportunities = [
+  {
+    id: 1,
+    logo: "🇪🇺",
+    name: "EIC Accelerator 2026",
+    org: "European Innovation Council",
+    type: "Government Grant",
+    stage: ["Pre-seed","Seed","Series A"],
+    geo: "Europe",
+    amount: "Up to €2.5M",
+    deadline: "Feb 19, 2026",
+    urgent: true,
+    status: "active",
+    verified: "2 days ago",
+    matchScore: 91,
+    communityRating: 4.6,
+    reviewCount: 142,
+    tags: ["Deep Tech","Hardware","Climate","Europe"],
+    desc: "The EIC Accelerator supports individual SMEs and startups to develop and scale up breakthrough innovations with EU-wide and global potential. Grant component plus equity investment.",
+    fullDesc: "The EIC Accelerator supports individual SMEs and startups (including spin-offs and spin-outs) to develop and scale up breakthrough innovations with the potential to create new markets or disruptively transform existing ones. The EIC Accelerator provides a combination of grant financing and equity investment, with a total funding available of €2.5M per project (€2.5M grant + up to €15M equity).",
+    eligibility: [
+      { ok: true, text: "SMEs or startup companies incorporated in an EU Member State or associated country" },
+      { ok: true, text: "Technology Readiness Level (TRL) 5–6 minimum" },
+      { ok: true, text: "Deep tech, cleantech, healthtech, or digital innovation focus" },
+      { ok: false, text: "Not open to large enterprises or universities as lead applicants" },
+      { ok: false, text: "Companies that have already received more than €2.5M in EIC grants are ineligible" },
+    ],
+    reviews: [
+      { name: "Elena K.", rating: 5, date: "Jan 2026", text: "The process is long but worth it. Make sure your TRL documentation is airtight. We got through to the final interview stage — very thorough but fair." },
+      { name: "David T.", rating: 4, date: "Dec 2025", text: "The online application is clearer than it looks at first. The business innovation component is key — don't just focus on the tech." },
+      { name: "Priya S.", rating: 4, date: "Nov 2025", text: "Took about 3 months from submission to first feedback. Communication is slow but the funding is transformative if you get it." },
+    ],
+    isNew: true,
+  },
+  {
+    id: 2,
+    logo: "🚀",
+    name: "Y Combinator W26",
+    org: "Y Combinator",
+    type: "Accelerator",
+    stage: ["Pre-seed","Seed"],
+    geo: "Global",
+    amount: "$500K",
+    deadline: "Feb 28, 2026",
+    urgent: false,
+    status: "active",
+    verified: "1 day ago",
+    matchScore: 87,
+    communityRating: 4.8,
+    reviewCount: 2847,
+    tags: ["Accelerator","Global","Any Sector"],
+    desc: "The world's most prestigious startup accelerator. YC invests $500K in exchange for 7% equity, providing world-class mentorship, a powerful alumni network, and Demo Day exposure.",
+    fullDesc: "Y Combinator invests $500,000 in exchange for 7% equity. Every company gets unlimited access to YC partners, the YC alumni network, and goes through an intensive 3-month batch program culminating in Demo Day — where the best VCs in the world compete to fund your company.",
+    eligibility: [
+      { ok: true, text: "Any stage — pre-launch to post-revenue" },
+      { ok: true, text: "Any sector or geography globally" },
+      { ok: true, text: "Solo founders and co-founded teams are both accepted" },
+      { ok: false, text: "Companies that have raised more than $2M are rarely accepted" },
+    ],
+    reviews: [
+      { name: "James H.", rating: 5, date: "Feb 2026", text: "The network alone is worth it. Being in YC opens every door. Incredibly hard to get in but if you can, do it without question." },
+      { name: "Mei L.", rating: 5, date: "Jan 2026", text: "The application is deceptively simple. They want to understand why you, why now, and why this problem. Focus on founder-market fit." },
+      { name: "Omar R.", rating: 4, date: "Dec 2025", text: "Great experience. Very intense 3 months. The group office hours are surprisingly more valuable than the 1-1s." },
+    ],
+    isNew: false,
+  },
+  {
+    id: 3,
+    logo: "🇺🇸",
+    name: "SBIR Phase I",
+    org: "US Department of Commerce",
+    type: "Government Grant",
+    stage: ["Pre-seed","Seed"],
+    geo: "USA",
+    amount: "Up to $275K",
+    deadline: "Mar 15, 2026",
+    urgent: false,
+    status: "active",
+    verified: "4 days ago",
+    matchScore: 78,
+    communityRating: 3.9,
+    reviewCount: 416,
+    tags: ["Government","USA","Non-dilutive"],
+    desc: "Small Business Innovation Research Phase I grants fund early-stage R&D for US-based small businesses. Non-dilutive. Strong preference for deep tech and scientific innovation.",
+    fullDesc: "The SBIR program is a highly competitive program that encourages domestic small businesses to engage in Federal Research/Research and Development (R/R&D) that has the potential for commercialization. Phase I is a feasibility study period during which the small business concern explores the technical and commercial potential of their innovation.",
+    eligibility: [
+      { ok: true, text: "US-based small business (fewer than 500 employees)" },
+      { ok: true, text: "At least 51% US citizen or permanent resident owned" },
+      { ok: true, text: "Technology focus with R&D component" },
+      { ok: false, text: "Non-US companies are ineligible" },
+      { ok: false, text: "Pure software plays without scientific R&D component are rarely funded" },
+    ],
+    reviews: [
+      { name: "Dr. Anita W.", rating: 4, date: "Jan 2026", text: "Very bureaucratic process but the funding is genuinely non-dilutive and substantial. Budget 6-8 weeks for the application." },
+      { name: "Carlos M.", rating: 3, date: "Nov 2025", text: "The application portal is a nightmare. Give yourself twice as long as you think. The commercialisation section is what most people underestimate." },
+    ],
+    isNew: false,
+  },
+  {
+    id: 4,
+    logo: "⚡",
+    name: "Techstars Chicago Accelerator",
+    org: "Techstars",
+    type: "Accelerator",
+    stage: ["Pre-seed","Seed"],
+    geo: "USA",
+    amount: "$120K + mentorship",
+    deadline: "Mar 15, 2026",
+    urgent: false,
+    status: "active",
+    verified: "3 days ago",
+    matchScore: 83,
+    communityRating: 4.2,
+    reviewCount: 389,
+    tags: ["Accelerator","USA","Midwest","B2B"],
+    desc: "Techstars Chicago is a mentorship-driven accelerator investing $120K into 10 startups per year. Focus on B2B and enterprise software for the Midwest ecosystem.",
+    fullDesc: "Techstars Chicago brings together the brightest entrepreneurs from around the world and connects them with the mentors, investors, and community that will take them further, faster. The 3-month accelerator program culminates in Demo Day where startups present to 500+ investors.",
+    eligibility: [
+      { ok: true, text: "Pre-seed to seed stage startups" },
+      { ok: true, text: "B2B, SaaS, enterprise software preferred" },
+      { ok: true, text: "Willing to relocate to Chicago for the 3-month programme" },
+      { ok: false, text: "Consumer apps or pure marketplace models are rarely selected" },
+    ],
+    reviews: [
+      { name: "Sofia K.", rating: 4, date: "Jan 2026", text: "The mentor network in Chicago is exceptional for B2B. Helped us land our first 3 enterprise customers. The equity ask is steep but worth it." },
+      { name: "Wei Z.", rating: 5, date: "Dec 2025", text: "Best 3 months of our startup journey. Intensely valuable mentorship. Make sure you apply early — rolling applications mean late apps are disadvantaged." },
+    ],
+    isNew: false,
+  },
+  {
+    id: 5,
+    logo: "🌱",
+    name: "Breakthrough Energy Fellows",
+    org: "Breakthrough Energy",
+    type: "Foundation",
+    stage: ["Seed","Series A"],
+    geo: "Global",
+    amount: "Up to $1M",
+    deadline: "Apr 1, 2026",
+    urgent: false,
+    status: "active",
+    verified: "6 days ago",
+    matchScore: 62,
+    communityRating: 4.5,
+    reviewCount: 87,
+    tags: ["Climate","Clean Energy","Global","Non-dilutive"],
+    desc: "Breakthrough Energy Fellows program provides up to $1M in non-dilutive funding for scientists and entrepreneurs working on breakthrough clean energy technologies.",
+    fullDesc: "The Breakthrough Energy Fellows program supports bold scientists and entrepreneurs working on early-stage technologies across five critical areas: electricity, transportation, agriculture, manufacturing, and buildings. Fellows receive up to $1M in non-dilutive funding over 2 years, plus access to the Breakthrough Energy network of world-leading experts.",
+    eligibility: [
+      { ok: true, text: "Founders with scientific/technical background working on climate innovation" },
+      { ok: true, text: "Pre-seed to seed stage" },
+      { ok: true, text: "Focus on at least one of: electricity, transport, agriculture, manufacturing, buildings" },
+      { ok: false, text: "B2B software without direct emissions impact is not eligible" },
+      { ok: false, text: "Companies without a clear path to gigatonne-scale impact rarely selected" },
+    ],
+    reviews: [
+      { name: "Dr. Fatima A.", rating: 5, date: "Dec 2025", text: "The technical review process is rigorous but genuinely evaluates impact potential. The network you get access to is unmatched in climate." },
+      { name: "Ravi P.", rating: 4, date: "Nov 2025", text: "They want to see that you've thought seriously about scale. The application is long but each question is meaningful." },
+    ],
+    isNew: false,
+  },
+  {
+    id: 6,
+    logo: "🏛️",
+    name: "Innovate UK Smart Grant",
+    org: "UK Research & Innovation",
+    type: "Government Grant",
+    stage: ["Pre-seed","Seed","Series A"],
+    geo: "UK",
+    amount: "£25K–£500K",
+    deadline: "Mar 8, 2026",
+    urgent: false,
+    status: "active",
+    verified: "5 days ago",
+    matchScore: 71,
+    communityRating: 3.7,
+    reviewCount: 623,
+    tags: ["Government","UK","R&D","Non-dilutive"],
+    desc: "Innovate UK Smart grants fund game-changing and disruptive R&D innovations that can significantly impact the UK economy. Up to £500K for single companies.",
+    fullDesc: "Smart is Innovate UK's flagship open funding competition, targeting disruptive or game-changing innovations with the potential to have significant economic impact. Projects must carry out R&D with the potential to be highly innovative. Single companies can apply for between £25,000 and £500,000 in grant funding.",
+    eligibility: [
+      { ok: true, text: "UK-registered company" },
+      { ok: true, text: "The project must be R&D-led with a clearly disruptive innovation" },
+      { ok: true, text: "Collaboration with another UK company or university is welcomed but not required" },
+      { ok: false, text: "Companies not based or operating primarily in the UK are ineligible" },
+    ],
+    reviews: [
+      { name: "Ben A.", rating: 4, date: "Jan 2026", text: "The application portal (IFS) is dated but usable. Focus your narrative on the economic impact to UK plc, not just the technical novelty." },
+      { name: "Laura T.", rating: 3, date: "Dec 2025", text: "Very competitive. We applied twice — the second time we used an Innovate UK coach which made a huge difference. The reviewer feedback is detailed and useful." },
+    ],
+    isNew: true,
+  },
+];
+
+// Tracker data
+let trackerData = {
+  saved: [
+    { id: 1, name: "EIC Accelerator 2026", org: "European Innovation Council", deadline: "Feb 19, 2026", amount: "Up to €2.5M", matchScore: 91, urgent: true, note: "" },
+    { id: 4, name: "Techstars Chicago 2026", org: "Techstars", deadline: "Mar 15, 2026", amount: "$120K + mentorship", matchScore: 83, urgent: false, note: "" },
+  ],
+  progress: [
+    { id: 2, name: "Y Combinator S26", org: "Y Combinator", deadline: "Feb 28, 2026", amount: "$500K", urgent: false, note: "Working on video essay. Need to clarify growth metrics section." },
+    { id: 6, name: "Innovate UK Smart Grant", org: "UK Research & Innovation", deadline: "Mar 8, 2026", amount: "Up to £500K", urgent: false, note: "Waiting for co-founder to review section 4." },
+  ],
+  submitted: [
+    { id: 101, name: "a16z Speedrun", org: "Andreessen Horowitz", deadline: "Submitted Jan 12", amount: "Pre-seed check", urgent: false, note: "Followed up Jan 26. No response yet." },
+    { id: 102, name: "First Round Capital", org: "First Round", deadline: "Submitted Jan 28", amount: "Seed round", urgent: false, note: "" },
+    { id: 103, name: "Climate Tech Fund", org: "Breakthrough Energy", deadline: "Submitted Feb 2", amount: "Up to $1M", urgent: false, note: "" },
+  ],
+  decision: [
+    { id: 104, name: "500 Startups Batch 32", org: "500 Global", deadline: "Interview scheduled Feb 24", amount: "$150K", urgent: false, note: "🎯 Interview confirmed! Prep call with team on Feb 21.", highlight: true },
+  ]
+};
+
+let currentDetailId = null;
+let currentFilters = {
+  search: "",
+  status: ["active"],
+  type: ["Accelerator", "Government Grant", "VC / Angel", "Foundation"],
+  stage: ["Pre-seed", "Seed"],
+  geo: ["Global", "USA", "Europe"]
+};
+
+// ── VIEW MANAGEMENT ──
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + name);
+  if (navEl) navEl.classList.add('active');
+  window.scrollTo(0, 0);
+  
+  if (name === 'directory') {
+    renderOpps(opportunities);
+  } else if (name === 'tracker') {
+    renderTracker();
+  }
+}
+
+// ── TOAST NOTIFICATIONS ──
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ── DIRECTORY ──
+function renderOpps(list) {
+  const container = document.getElementById('oppsList');
+  const countEl = document.getElementById('resultsCount');
+  countEl.innerHTML = `<strong>${list.length}</strong> opportunity${list.length !== 1 ? 'ies' : 'y'} found`;
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h3>No opportunities found</h3>
+        <p>Try adjusting your filters or search terms</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = list.map((o, idx) => `
+    <div class="opp-card" style="animation-delay:${idx * 0.05}s" onclick="openDetail(${o.id})">
+      <div class="opp-logo">${o.logo}</div>
+      <div class="opp-main">
+        <div class="opp-top">
+          <div>
+            <div class="opp-name">${o.name} ${o.isNew ? '<span class="badge badge-new" style="font-size:10px;vertical-align:middle">NEW</span>' : ''}</div>
+            <div class="opp-org">${o.org}</div>
+          </div>
+          <div class="opp-right">
+            <div class="opp-amount">${o.amount}</div>
+            <span class="badge badge-${o.status}">● ${o.status.charAt(0).toUpperCase() + o.status.slice(1)}</span>
+          </div>
+        </div>
+        <div class="opp-meta">
+          <span class="opp-deadline ${o.urgent ? 'urgent' : ''}">📅 ${o.urgent ? '⚠ ' : ''}${o.deadline}</span>
+          ${o.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+        </div>
+        <div class="opp-desc">${o.desc}</div>
+        <div class="opp-footer">
+          <span class="match-pill">✦ ${o.matchScore}% match</span>
+          <span class="badge badge-verified">✓ Verified</span>
+          <span style="font-size:11px;color:var(--muted)">Checked ${o.verified} · ★ ${o.communityRating} (${o.reviewCount} reviews)</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterOpps() {
+  const query = document.getElementById('searchInput').value.toLowerCase();
+  
+  // Get checkbox states
+  const checkboxes = document.querySelectorAll('.filter-option input[type="checkbox"]');
+  const checkedStatuses = Array.from(document.querySelectorAll('.filter-option:nth-child(-n+4) input:checked')).map(cb => cb.parentElement.textContent.trim().split(' ')[0].toLowerCase());
+  
+  const filtered = opportunities.filter(o => {
+    const matchesSearch = !query || 
+      o.name.toLowerCase().includes(query) ||
+      o.org.toLowerCase().includes(query) ||
+      o.desc.toLowerCase().includes(query) ||
+      o.tags.some(t => t.toLowerCase().includes(query));
+    
+    return matchesSearch;
+  });
+  
+  renderOpps(filtered);
+}
+
+function sortOpps(sortBy) {
+  let sorted = [...opportunities];
+  
+  switch(sortBy) {
+    case 'deadline':
+      sorted.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+      break;
+    case 'amount':
+      // Extract numeric values for comparison
+      sorted.sort((a, b) => {
+        const getVal = (str) => {
+          const match = str.match(/[\d.]+/);
+          return match ? parseFloat(match[0]) : 0;
+        };
+        return getVal(b.amount) - getVal(a.amount);
+      });
+      break;
+    case 'verified':
+      sorted.sort((a, b) => parseInt(a.verified) - parseInt(b.verified));
+      break;
+    default: // match
+      sorted.sort((a, b) => b.matchScore - a.matchScore);
+  }
+  
+  renderOpps(sorted);
+}
+
+function toggleFilters() {
+  const panel = document.getElementById('filtersPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── DETAIL ──
+function openDetail(id) {
+  currentDetailId = id;
+  const o = opportunities.find(x => x.id === id);
+  if (!o) return;
+  loadDetail(id);
+  showView('detail');
+}
+
+function loadDetail(id) {
+  const o = opportunities.find(x => x.id === id);
+  if (!o) return;
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-logo">${o.logo}</div>
+    <h1 class="detail-title">${o.name}</h1>
+    <div class="detail-org">${o.org} · ${o.type} · ${o.geo}</div>
+    <div class="detail-badges">
+      <span class="badge badge-${o.status}">● ${o.status.charAt(0).toUpperCase() + o.status.slice(1)}</span>
+      <span class="badge badge-verified">✓ Verified ${o.verified}</span>
+      ${o.isNew ? '<span class="badge badge-new">NEW</span>' : ''}
+      ${o.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+    </div>
+
+    <div class="trust-panel">
+      <div class="trust-panel-title">🛡 Trust & Verification</div>
+      <div class="trust-grid">
+        <div class="trust-item">
+          <div class="trust-item-label">Status</div>
+          <div class="trust-item-value"><span class="badge badge-${o.status}">● Active</span></div>
+        </div>
+        <div class="trust-item">
+          <div class="trust-item-label">Last Verified</div>
+          <div class="trust-item-value" style="color:var(--accent2)">✓ ${o.verified}</div>
+        </div>
+        <div class="trust-item">
+          <div class="trust-item-label">Community Rating</div>
+          <div class="trust-item-value">
+            <span class="trust-stars">${'★'.repeat(Math.round(o.communityRating))}${'☆'.repeat(5-Math.round(o.communityRating))}</span>
+            ${o.communityRating}
+          </div>
+        </div>
+        <div class="trust-item">
+          <div class="trust-item-label">Reviews</div>
+          <div class="trust-item-value">${o.reviewCount} founders</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="addToTracker(${o.id})">Save to Tracker</button>
+      <a href="#" class="btn btn-green" onclick="event.preventDefault();applyNow(${o.id})">Apply Now ↗</a>
+      <button class="btn btn-ghost btn-sm" onclick="flagOutdated()">⚑ Flag as outdated</button>
+    </div>
+  `;
+
+  document.getElementById('detailBody').innerHTML = `
+    <div class="detail-section">
+      <h3>About This Programme</h3>
+      <p>${o.fullDesc}</p>
+    </div>
+
+    <div class="detail-section">
+      <h3>Funding</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Amount</div>
+          <div style="font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--accent2)">${o.amount}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Deadline</div>
+          <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--ink)">${o.deadline}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Stage</div>
+          <div style="font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--ink)">${o.stage.join(' · ')}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Eligibility Criteria</h3>
+      <ul class="eligibility-list">
+        ${o.eligibility.map(e => `
+          <li>
+            <span class="${e.ok ? 'elig-check' : 'elig-cross'}">${e.ok ? '✓' : '✗'}</span>
+            <span>${e.text}</span>
+          </li>
+        `).join('')}
+      </ul>
+    </div>
+
+    <div class="detail-section">
+      <h3>Your Match</h3>
+      <div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-family:var(--font-display);font-weight:700">Luminary Labs × ${o.name}</span>
+          <span class="match-pill" style="font-size:14px;padding:5px 12px">✦ ${o.matchScore}% match</span>
+        </div>
+        <div style="background:var(--bg2);border-radius:6px;height:8px;overflow:hidden">
+          <div style="background:linear-gradient(90deg,var(--accent2),#4CAF50);height:100%;width:${o.matchScore}%;border-radius:6px;transition:width 0.6s ease"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px">Based on your profile: Seed-stage B2B SaaS, USA, $28K MRR, AI/Supply Chain focus.</p>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>Founder Reviews (${o.reviewCount})</h3>
+      ${o.reviews.map(r => `
+        <div class="review-card">
+          <div class="review-header">
+            <div class="reviewer">${r.name}</div>
+            <div class="review-date">${r.date}</div>
+          </div>
+          <div class="review-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div>
+          <div class="review-text">${r.text}</div>
+        </div>
+      `).join('')}
+      <button class="btn btn-ghost btn-sm" onclick="showToast('Review submission coming soon!')">+ Write a review</button>
+    </div>
+
+    <div class="apply-box">
+      <h3>Ready to apply?</h3>
+      <p>Your Founder Profile is 65% complete. Add traction metrics to generate a stronger application pre-fill.</p>
+      <div class="apply-btns">
+        <button class="btn btn-primary" onclick="addToTracker(${o.id})">Save to Tracker</button>
+        <button class="btn btn-secondary" onclick="showView('profile')">Complete My Profile First</button>
+      </div>
+    </div>
+  `;
+}
+
+function addToTracker(id) {
+  const opp = opportunities.find(o => o.id === id);
+  if (!opp) return;
+  
+  // Check if already in tracker
+  const allTracked = [...trackerData.saved, ...trackerData.progress, ...trackerData.submitted, ...trackerData.decision];
+  if (allTracked.find(t => t.id === id)) {
+    showToast('Already in your tracker!');
+    return;
+  }
+  
+  trackerData.saved.push({
+    id: opp.id,
+    name: opp.name,
+    org: opp.org,
+    deadline: opp.deadline,
+    amount: opp.amount,
+    matchScore: opp.matchScore,
+    urgent: opp.urgent,
+    note: ""
+  });
+  
+  showToast('Added to tracker!');
+  updateTrackerCounts();
+}
+
+function applyNow(id) {
+  showToast('Opening application portal...');
+  // In real app, would open external link or internal application flow
+}
+
+function flagOutdated() {
+  showToast('Thanks for flagging. We will review this listing within 24 hours.');
+}
+
+// ── PROFILE ──
+function updateProgress() {
+  const bar = document.getElementById('profileProgress');
+  const label = document.getElementById('progressLabel');
+  
+  // Calculate based on filled fields
+  const inputs = document.querySelectorAll('.form-input, .form-textarea, .form-select');
+  let filled = 0;
+  inputs.forEach(input => {
+    if (input.value.trim().length > 0) filled++;
+  });
+  
+  const pct = Math.min(95, Math.round((filled / inputs.length) * 100));
+  bar.style.width = pct + '%';
+  label.textContent = `Profile ${pct}% complete — ${pct < 100 ? 'add more details to unlock better matching' : 'Profile complete!'}`;
+}
+
+function validateField(field) {
+  if (field.value.trim().length > 0) {
+    field.style.borderColor = 'var(--accent2)';
+  } else {
+    field.style.borderColor = 'var(--border)';
+  }
+}
+
+function checkTractionComplete() {
+  const status = document.getElementById('tractionStatus');
+  const metrics = document.querySelectorAll('.metric-box .metric-value');
+  let hasValues = true;
+  metrics.forEach(m => {
+    if (!m.textContent.trim()) hasValues = false;
+  });
+  
+  if (hasValues) {
+    status.textContent = '✓ Complete';
+    status.className = 'profile-card-status complete';
+  } else {
+    status.textContent = '⚠ Incomplete';
+    status.className = 'profile-card-status incomplete';
+  }
+}
+
+function checkFundingComplete() {
+  const status = document.getElementById('fundingStatus');
+  const inputs = document.querySelectorAll('.profile-card:nth-child(4) .form-input, .profile-card:nth-child(4) .form-textarea');
+  let filled = 0;
+  inputs.forEach(input => {
+    if (input.value.trim().length > 0) filled++;
+  });
+  
+  if (filled >= 2) {
+    status.textContent = '✓ Complete';
+    status.className = 'profile-card-status complete';
+  } else {
+    status.textContent = '⚠ Incomplete';
+    status.className = 'profile-card-status incomplete';
+  }
+}
+
+function saveProfile() {
+  showToast('Profile saved successfully!');
+  setTimeout(() => showView('directory'), 800);
+}
+
+// ── TRACKER ──
+function renderTracker() {
+  // Render each column
+  Object.keys(trackerData).forEach(status => {
+    const container = document.getElementById(`col-${status}`);
+    const items = trackerData[status];
+    
+    if (items.length === 0) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">No items</div>';
+    } else {
+      container.innerHTML = items.map(item => `
+        <div class="tracker-card ${item.highlight ? 'style="border-left:3px solid var(--gold)"' : ''}" onclick="openDetail(${item.id})" draggable="true" ondragstart="dragStart(event, ${item.id}, '${status}')">
+          <div class="tracker-card-name">${item.name}</div>
+          <div class="tracker-card-org">${item.org}</div>
+          <div class="tracker-card-deadline ${item.urgent ? 'soon' : ''}">📅 ${item.deadline}</div>
+          <div class="tracker-card-amount">${item.amount}</div>
+          ${item.note ? `<div class="tracker-card-note">${item.note}</div>` : ''}
+          ${item.matchScore ? `<div style="margin-top:8px"><span class="match-pill">✦ ${item.matchScore}% match</span></div>` : ''}
+        </div>
+      `).join('');
+    }
+    
+    // Update count
+    document.getElementById(`count-${status}`).textContent = items.length;
+  });
+  
+  updateTrackerCounts();
+}
+
+function updateTrackerCounts() {
+  const total = Object.values(trackerData).flat().length;
+  const submitted = trackerData.submitted.length;
+  const progress = trackerData.progress.length;
+  const decision = trackerData.decision.length;
+  const urgent = [...trackerData.saved, ...trackerData.progress].filter(i => i.urgent).length;
+  
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-submitted').textContent = submitted;
+  document.getElementById('stat-progress').textContent = progress;
+  document.getElementById('stat-decision').textContent = decision;
+  document.getElementById('stat-urgent').textContent = urgent;
+  
+  // Update alert bar
+  const alertBar = document.getElementById('deadlineAlert');
+  if (urgent === 0) {
+    alertBar.style.display = 'none';
+  } else {
+    alertBar.style.display = 'flex';
+    alertBar.innerHTML = `⚠️ <strong>${urgent} deadline${urgent !== 1 ? 's' : ''} this week</strong> — Check your saved opportunities`;
+  }
+}
+
+// Drag and drop functionality
+function dragStart(e, id, fromStatus) {
+  e.dataTransfer.setData('text/plain', JSON.stringify({id, fromStatus}));
+}
+
+// Allow drop on columns
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.kanban-col').forEach(col => {
+    col.addEventListener('dragover', e => e.preventDefault());
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const toStatus = col.dataset.status;
+      
+      if (data.fromStatus !== toStatus) {
+        // Move item
+        const item = trackerData[data.fromStatus].find(i => i.id === data.id);
+        if (item) {
+          trackerData[data.fromStatus] = trackerData[data.fromStatus].filter(i => i.id !== data.id);
+          trackerData[toStatus].push(item);
+          renderTracker();
+          showToast(`Moved to ${toStatus.replace('-', ' ')}`);
+        }
+      }
+    });
+  });
+  
+  // Initialize
+  renderOpps(opportunities);
+  renderTracker();
+});
+</script>
+</body>
+</html>
